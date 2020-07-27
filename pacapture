@@ -1,0 +1,15 @@
+#!/bin/bash
+
+OUTPUT_FILE="${HOME}/Music/capture/$(date '+%Y-%m-%d-%H-%M-%S').wav"
+mkdir -p "${HOME}/Music/capture"
+
+# Get sink monitor:
+MONITOR=$(pactl list sinks | grep -o -m 1 'alsa_output\..*\-stereo\.monitor$')
+
+echo "Recording from ${MONITOR} to ${OUTPUT_FILE} ..."
+echo "set-source-mute ${MONITOR} false" | pacmd >/dev/null
+
+amixer -q -D pulse sset Master 1%
+
+parec -d "${MONITOR}" | sox -t raw -e signed -r 44100 -L -b 16 -c 2 - "${OUTPUT_FILE}"
+
