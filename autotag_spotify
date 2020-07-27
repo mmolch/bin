@@ -1,0 +1,88 @@
+#!/bin/bash
+
+if [ ! -e 'tracklist.txt' ]; then
+    URL=${1}
+    lynx -dump "${URL}" | tail -n +14 > 'tracklist.txt'
+fi
+
+parse_tracklist()
+{
+    ARTIST=$(head -n 3 'tracklist.txt' | tail -n 1 | cut -d ']' -f 2-)
+    ARTIST=${ARTIST//\// }
+    ARTIST=${ARTIST//  // }
+
+    ALBUM=$(head -n 1 'tracklist.txt')
+    ALBUM=${ALBUM//\// }
+    ALBUM=${ALBUM//  // }
+
+    TRACK=0
+    TITLELINE=0
+    while read line; do
+        if [ ${TITLELINE} -eq 1 ]; then
+            TITLELINE=0
+
+            TITLE=${line//\// }
+            TITLE=${TITLE//  // }
+            TITLES[${TRACK}]="${TITLE}"
+            continue
+        fi
+
+        if grep '^[0-9]*\. [0-9]*\.$' <<<${line} >/dev/null; then
+            TRACK=${line%%.*}
+            TITLELINE=1
+        fi
+    done <'tracklist.txt'
+}
+
+print_tracklist()
+{
+    echo "Artist: ${ARTIST}"
+    echo "Album:  ${ALBUM}"
+
+    for index in ${!TITLES[*]};do
+        echo "  ${index}: ${TITLES[${index}]}"
+    done
+}
+
+# returns the title for track number
+get_title() {
+    echo "${TITLES[${1}]}"
+}
+
+parse_tracklist
+
+print_tracklist
+
+echo
+echo "Press enter to continue"
+read xxx
+
+mkdir -p "${ARTIST}/${ALBUM}" 2>/dev/null
+
+for index in ${!TITLES[*]}; do
+    echo "  ${index} / ${#TITLES[*]}: ${TITLES[${index}]}"
+
+    TITLE="${TITLES[${index}]}"
+
+    NUM_TRACKS=${#TITLES[*]}
+    NUM_TRACKS_DIGITS=${#NUM_TRACKS}
+
+    TRACK=${index}
+    TRACK=$(printf "%.${NUM_TRACKS_DIGITS}d" ${index})
+
+    ffmpeg \
+        -y \
+        -loglevel error \
+        -stats \
+        -i "${index}.wav" \
+        -map_metadata -1 \
+        -metadata "title=${TITLE}" \
+        -metadata "artist=${ARTIST}" \
+        -metadata "album=${ALBUM}" \
+        -metadata "track=${TRACK}/${#TITLES[*]}" \
+        -c:a libopus -b:a 128k -map 0:a:0 \
+        "${ARTIST}/${ALBUM}/tmp.ogg"
+
+    mv "${ARTIST}/${ALBUM}/tmp.ogg" "${ARTIST}/${ALBUM}/${ARTIST} - ${ALBUM} - ${TRACK} - ${TITLE}.ogg"
+done
+
