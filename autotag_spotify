@@ -38,6 +38,7 @@ print_tracklist()
 {
     echo "Artist: ${ARTIST}"
     echo "Album:  ${ALBUM}"
+    echo "Year: ${YEAR}"
 
     for index in ${!TITLES[*]};do
         echo "  ${index}: ${TITLES[${index}]}"
@@ -49,6 +50,8 @@ get_title() {
     echo "${TITLES[${1}]}"
 }
 
+YEAR=$(grep ' • ' 'tracklist.txt' | cut -d ' ' -f 4)
+
 parse_tracklist
 
 print_tracklist
@@ -57,7 +60,7 @@ echo
 echo "Press enter to continue"
 read xxx
 
-mkdir -p "${ARTIST}/${ALBUM}" 2>/dev/null
+mkdir -p "${ARTIST}/[${YEAR}] ${ALBUM}" 2>/dev/null
 
 for index in ${!TITLES[*]}; do
     echo "  ${index} / ${#TITLES[*]}: ${TITLES[${index}]}"
@@ -81,8 +84,8 @@ for index in ${!TITLES[*]}; do
         -metadata "album=${ALBUM}" \
         -metadata "track=${TRACK}/${#TITLES[*]}" \
         -c:a libopus -b:a 128k -map 0:a:0 \
-        "${ARTIST}/${ALBUM}/tmp.ogg"
+        "${ARTIST}/[${YEAR}] ${ALBUM}/tmp.ogg"
 
-    mv "${ARTIST}/${ALBUM}/tmp.ogg" "${ARTIST}/${ALBUM}/${ARTIST} - ${ALBUM} - ${TRACK} - ${TITLE}.ogg"
+    mv "${ARTIST}/[${YEAR}] ${ALBUM}/tmp.ogg" "${ARTIST}/[${YEAR}] ${ALBUM}/${ARTIST} - ${ALBUM} - ${TRACK} - ${TITLE}.ogg"
 done
 

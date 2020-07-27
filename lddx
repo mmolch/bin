@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+
+import optparse
+import sys
+import os
+import glob
+import subprocess
+import shutil
+import re
+
+class OptionParser(optparse.OptionParser):
+    def __init__(self):
+        super().__init__(self.usage)
+        
+        self.add_option('-c', type="string", metavar='directory', dest='copy', help='copy the libs into directory')
+        self.add_option('-i', action="store_true", dest='ignore_system', help='ignore libs in /lib* and /usr')
+        self.add_option('-r', action="store_true", dest='recursive', help='recursive mode')
+        self.add_option('-p', action="store_true", dest='patchelf', help='set rpath of copied libs to $ORIGIN (needs patchelf)')
+        
+        
+    def parse(self):
+        (self.options, self.args) = self.parse_args()
+
+    usage = ''
+
+
+def neededLibs(filename):
+    ret = subprocess.check_output(['readelf', '-d', filename], stderr=subprocess.STDOUT).decode('utf-8').split('\n')
+
+    regex = re.compile('.*NEEDED.*')
+    needed = list()
+    for line in ret:
+        if regex.match(line):
+            needed.append(line.split(' ')[-1][1:-1])
+
+    return needed
+    
+    
+def dlls(filename):
+    ret = subprocess.check_output(['ldd', filename]).decode('utf-8').split('\n')
+    dlls = dict()
+    for line in ret:
+        spl = line.split(' => ')
+        if len(spl) > 1:
+            dlls[spl[0].strip()] = spl[1].split(' (0x')[0]
+    
+    return dlls
+
+
+rec_shown = dict()
+output = list()
+
+
+def process(filename):
+    if os.path.isfile(filename):
+        libs = dlls(filename)
+        for lib in neededLibs(filename):
+            if lib in libs:
+                if parser.options.ignore_system and (libs[lib].startswith('/usr') or libs[lib].startswith('/lib')):
+                    continue
+                    
+                if lib in rec_shown:
+                    continue
+                    
+                rec_shown[lib] = True
+            
+                output.append('\t' + lib + ' => ' + libs[lib])
+                if parser.options.copy:
+                    if os.path.isfile(libs[lib]):
+                        if  not os.path.isfile(os.path.join(parser.options.copy, lib)):
+                            os.makedirs(parser.options.copy, exist_ok=True)
+                            try:
+                                shutil.copy(libs[lib], parser.options.copy)
+
+                                if parser.options.patchelf:
+                                    ret = subprocess.check_output(['patchelf', '--set-rpath', '$ORIGIN', os.path.join(parser.options.copy, lib)])
+        
+                            except:
+                                pass
+                            
+                            
+                    else:
+                        print(os.path.basename(filename) + ': ' + lib + ' => ' + libs[lib])
+                    
+                if parser.options.recursive:
+                    process(libs[lib])
+
+    if filename == sys.argv[-1]:
+        print('\n'.join(sorted(output)))
+
+
+if __name__ == '__main__':
+    parser = OptionParser()
+    parser.parse()
+    
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
+    
+
+    if os.path.isfile(sys.argv[-1]):
+        process(sys.argv[-1])
+            
+    else:
+        parser.print_help()

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+for file_manager in nautilus nemo pcmanfm; do
+	if which "${file_manager}" >/dev/null; then
+		exec "${file_manager}" "${PWD}" >/dev/null 2>/dev/null &
+		exit
+	fi
+done

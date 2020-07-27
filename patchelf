@@ -1,0 +1,9 @@
+#!/bin/bash
+
+case `arch` in
+	i*) "`dirname "$0"`/`uname`.x86/`basename "$0"`" "$@"
+	;;
+
+	x*) "`dirname "$0"`/`uname`.x86_64/`basename "$0"`" "$@"
+	;;
+esac
