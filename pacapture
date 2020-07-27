@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if ! which sox pacmd parec pactl amixer mpv >/dev/null; then
+    echo "Need to install some packages"
+    sudo apt install sox alsa-utils pulseaudio-utils mpv
+fi
+
 ScriptDir="$(readlink -f "${0}")"
 ScriptDir="${ScriptDir%/*}"
 
