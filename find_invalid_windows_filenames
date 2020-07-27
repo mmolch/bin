@@ -1,0 +1,7 @@
+#/bin/bash
+
+if find "${1}" | grep --color -E ':|\\|<|>|\*|\?|\"'; then
+    exit 0
+fi
+
+exit 1
