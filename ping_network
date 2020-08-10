@@ -1,0 +1,17 @@
+#!/bin/bash
+
+do_parallel() {
+    if ping -w 2 -c 2 192.168.0.${1} >/dev/null; then
+        echo "192.168.0.$(printf '%-3s' ${1}) $(host 192.168.0.${1} | head -n 1 | cut -d ' ' -f 5)"
+    fi
+
+}
+
+search() {
+    for i in $(seq 1 254); do
+        do_parallel ${i} &
+    done
+}
+
+search | sort -n
+

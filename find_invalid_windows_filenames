@@ -1,7 +1,14 @@
 #/bin/bash
 
-if find "${1}" | grep --color -E ':|\\|<|>|\*|\?|\"'; then
-    exit 0
+# Provide the directory to check as first argument. If nothing is specified, use working directory.
+
+DIRECTORY=${1}
+
+if [ -z "${DIRECTORY}" ]; then
+    DIRECTORY="."
 fi
 
-exit 1
+while IFS= read -r fil; do
+    grep --color -E '/ |:|\\|<|>|\*|\?|\"| $' <<<${fil}
+done <<<$(find "${DIRECTORY}" -mindepth 1 \( -name ' *' -o -name '* ' -o -name '*<*' -o -name '*>*' -o -name '*:*' -o -name '*\\*' -o -name '*\**' -o -name '*\?*' -o -name '*\"*' \))
+

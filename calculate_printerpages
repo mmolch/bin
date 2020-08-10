@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# This script calculates the order of pages to print
+# when printing 2 pages per paper page to it can be bound
+# as a book (resulting page size A5 when printing on A4)
+
+num_pages=3
+
+echo 'First pass:'
+for x in `seq 0 $((${num_pages}-1))`; do echo -n "$(($x * 4+1)),$((${x}*4+4))"; if [ ${x} -lt $((${num_pages}-1)) ]; then echo -n ','; fi ; done; echo
+echo
+echo 'Second pass (move paperstack down into tray WITHOUT changing direction or flipping, (text is facing down)):'
+for x in `seq ${num_pages} -1 1`; do echo -n "$((${x}*4-1)),$((${x}*4-2))"; if [ ${x} -gt 1 ]; then echo -n ','; fi ; done; echo
