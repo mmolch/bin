@@ -63,7 +63,11 @@ read xxx
 mkdir -p "${ARTIST}/[${YEAR}] ${ALBUM}" 2>/dev/null
 
 for index in ${!TITLES[*]}; do
-    echo "  ${index} / ${#TITLES[*]}: ${TITLES[${index}]}"
+    if [ ! -f "${index}.wav" ]; then
+        continue
+    fi
+
+    echo "  ${index}: ${TITLES[${index}]}"
 
     TITLE="${TITLES[${index}]}"
 
@@ -71,7 +75,8 @@ for index in ${!TITLES[*]}; do
     NUM_TRACKS_DIGITS=${#NUM_TRACKS}
 
     TRACK=${index}
-    TRACK=$(printf "%.${NUM_TRACKS_DIGITS}d" ${index})
+    #TRACK=$(printf "%.${NUM_TRACKS_DIGITS}d" ${index})
+    TRACK=$(printf "%.2d" ${index})
 
     ffmpeg \
         -y \
@@ -82,7 +87,7 @@ for index in ${!TITLES[*]}; do
         -metadata "title=${TITLE}" \
         -metadata "artist=${ARTIST}" \
         -metadata "album=${ALBUM}" \
-        -metadata "track=${TRACK}/${#TITLES[*]}" \
+        -metadata "track=${TRACK}" \
         -c:a libopus -b:a 128k -map 0:a:0 \
         "${ARTIST}/[${YEAR}] ${ALBUM}/tmp.ogg"
 
