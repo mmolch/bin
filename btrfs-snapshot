@@ -113,6 +113,10 @@ case "${1}" in
         ;;
 
     load|restore)
+        echo "Are you sure you want to restore your system? [y/n]"
+        read confirm
+        [ ! "x${confirm}" = "xy" ] && exit
+        
         _restore
         if [ ${do_reboot} -eq 1 ]; then
             sudo reboot
