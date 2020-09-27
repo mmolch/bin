@@ -1,0 +1,11 @@
+#!/bin/bash
+
+fetch_cover()
+{
+    if [ ! -f "${2}/cover.jpg" ]; then
+        cover_url=$(lynx -source "${1}" | grep -o "<div class=\"cover-art-image\" style=\"background-image:url(//i.scdn.co/image/[a-z0-9]*), " | grep -o 'i.scdn.co/image/[a-z0-9]*')
+        wget -O "${2}/cover.jpg" "${cover_url}"
+    fi
+}
+
+fetch_cover "${1}" "."

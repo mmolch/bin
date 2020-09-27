@@ -8,11 +8,9 @@ fi
 parse_tracklist()
 {
     ARTIST=$(head -n 3 'tracklist.txt' | tail -n 1 | cut -d ']' -f 2-)
-    ARTIST=${ARTIST//\// }
     ARTIST=${ARTIST//  // }
 
     ALBUM=$(head -n 1 'tracklist.txt')
-    ALBUM=${ALBUM//\// }
     ALBUM=${ALBUM//  // }
 
     TRACK=0
@@ -21,8 +19,8 @@ parse_tracklist()
         if [ ${TITLELINE} -eq 1 ]; then
             TITLELINE=0
 
-            TITLE=${line//\// }
-            TITLE=${TITLE//  // }
+            #TITLE=${line//\// }
+            TITLE=${line//  // }
             TITLES[${TRACK}]="${TITLE}"
             continue
         fi
@@ -62,8 +60,10 @@ read xxx
 
 mkdir -p "${ARTIST}/[${YEAR}] ${ALBUM}" 2>/dev/null
 
+$(cd "${ARTIST}/[${YEAR}] ${ALBUM}" && spotify_fetch_cover "${1}")
+
 for index in ${!TITLES[*]}; do
-    if [ ! -f "${index}.wav" ]; then
+    if [ ! -f "${index}.mp3" ]; then
         continue
     fi
 
@@ -75,14 +75,12 @@ for index in ${!TITLES[*]}; do
     NUM_TRACKS_DIGITS=${#NUM_TRACKS}
 
     TRACK=${index}
-    #TRACK=$(printf "%.${NUM_TRACKS_DIGITS}d" ${index})
-    TRACK=$(printf "%.2d" ${index})
 
     ffmpeg \
         -y \
         -loglevel error \
         -stats \
-        -i "${index}.wav" \
+        -i "${index}.mp3" \
         -map_metadata -1 \
         -metadata "title=${TITLE}" \
         -metadata "artist=${ARTIST}" \
@@ -90,6 +88,18 @@ for index in ${!TITLES[*]}; do
         -metadata "track=${TRACK}" \
         -c:a libopus -b:a 128k -map 0:a:0 \
         "${ARTIST}/[${YEAR}] ${ALBUM}/tmp.ogg"
+
+    #TRACK=$(printf "%.${NUM_TRACKS_DIGITS}d" ${index})
+    TRACK=$(printf "%.2d" ${index})
+
+    ARTIST=${ARTIST//\//∕}
+    ARTIST=${ARTIST//\?/}
+
+    ALBUM=${ALBUM//\//∕}
+    ALBUM=${ALBUM//\?/}
+
+    TITLE=${TITLE//\//∕}
+    TITLE=${TITLE//\?/}
 
     mv "${ARTIST}/[${YEAR}] ${ALBUM}/tmp.ogg" "${ARTIST}/[${YEAR}] ${ALBUM}/${ARTIST} - ${ALBUM} - ${TRACK} - ${TITLE}.ogg"
 done
