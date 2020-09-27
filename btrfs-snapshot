@@ -1,0 +1,130 @@
+#!/bin/bash
+
+CONFIG_FILE='/etc/btrfs-snapshot.conf'
+
+if [ -f "${CONFIG_FILE}" ]; then
+    source "${CONFIG_FILE}"
+else
+    echo 'Config file not found: /etc/btrfs-snapshot.conf'
+    exit
+fi
+
+_create() {
+while IFS= read -r subvolume; do
+    partition=${subvolume%,*}
+    subvol=${subvolume##*,}
+
+    [ -z "${partition}" ] && continue
+    [[ "${partition}" =~ ^#.* ]] && continue
+
+    echo "${subvolume}"
+    [ ! -e "/dev/disk/by-uuid/${partition}" ] && echo "Partition not available" && continue
+
+    tmpdir=$(mktemp -d '/tmp/btrfs-snapshot.XXXXXXXX')
+    sudo mount -t 'btrfs' -o 'subvolid=0' "/dev/disk/by-uuid/${partition}" "${tmpdir}"
+
+    if [ -e "${tmpdir}/${subvol}" ]; then
+        if [ -e "${tmpdir}/${subvol}-saved" ]; then
+            sudo btrfs subvolume delete "${tmpdir}/${subvol}-saved"
+        fi
+
+        if [ -e "${tmpdir}/${subvol}" ]; then
+            sudo btrfs subvolume snapshot "${tmpdir}/${subvol}" "${tmpdir}/${subvol}-saved"
+        fi
+    else
+        echo "The subvolume ${subvol} doesn't exist"
+    fi
+
+    sudo umount "${tmpdir}" && rmdir "${tmpdir}"
+
+    echo
+done <<eof
+${SUBVOLUMES}
+eof
+}
+
+do_reboot=0
+_restore() {
+while IFS= read -r subvolume; do
+    partition=${subvolume%,*}
+    subvol=${subvolume##*,}
+
+    [ -z "${partition}" ] && continue
+    [[ "${partition}" =~ ^#.* ]] && continue
+
+    echo "${subvolume}"
+    [ ! -e "/dev/disk/by-uuid/${partition}" ] && echo "Partition not available" && continue
+
+    tmpdir=$(mktemp -d '/tmp/btrfs-snapshot.XXXXXXXX')
+    sudo mount -t 'btrfs' -o 'subvolid=0' "/dev/disk/by-uuid/${partition}" "${tmpdir}"
+
+    if [ -e "${tmpdir}/${subvol}" ]; then
+        if [ -e "${tmpdir}/${subvol}-saved" ]; then
+            if [ -e "${tmpdir}/${subvol}-discarded" ]; then
+                sudo btrfs subvolume delete "${tmpdir}/${subvol}-discarded"
+            fi
+
+            sudo mv "${tmpdir}/${subvol}" "${tmpdir}/${subvol}-discarded"
+            
+            sudo btrfs subvolume snapshot "${tmpdir}/${subvol}-saved" "${tmpdir}/${subvol}"
+            do_reboot=1
+        else
+            echo "No such snapshot: ${subvol}-saved"
+        fi
+    else
+        echo "The subvolume ${subvol} doesn't exist"
+    fi
+
+    sudo umount "${tmpdir}" && rmdir "${tmpdir}"
+    echo
+done <<eof
+${SUBVOLUMES}
+eof
+}
+
+_clean() {
+while IFS= read -r subvolume; do
+    partition=${subvolume%,*}
+    subvol=${subvolume##*,}
+
+    [ -z "${partition}" ] && continue
+    [[ "${partition}" =~ ^#.* ]] && continue
+
+    echo "${subvolume}"
+    [ ! -e "/dev/disk/by-uuid/${partition}" ] && echo "Partition not available" && continue
+
+    tmpdir=$(mktemp -d '/tmp/btrfs-snapshot.XXXXXXXX')
+    sudo mount -t 'btrfs' -o 'subvolid=0' "/dev/disk/by-uuid/${partition}" "${tmpdir}"
+
+    if [ -e "${tmpdir}/${subvol}-discarded" ]; then
+        sudo btrfs subvolume delete "${tmpdir}/${subvol}-discarded"
+    fi
+
+    sudo umount "${tmpdir}" && rmdir "${tmpdir}"
+    echo
+done <<eof
+${SUBVOLUMES}
+eof
+}
+
+case "${1}" in
+    save|create)
+        _create
+        ;;
+
+    load|restore)
+        _restore
+        if [ ${do_reboot} -eq 1 ]; then
+            sudo reboot
+        fi
+        ;;
+
+    clean)
+        _clean
+        ;;
+
+    *)
+        _usage
+        ;;
+esac
+
