@@ -113,7 +113,7 @@ case "${1}" in
         ;;
 
     load|restore)
-        echo -r -n "Are you sure you want to restore your system?\n[y/n] "
+        echo -ne "Are you sure you want to restore your system?\n[y/n] "
         read confirm
         [ ! "x${confirm}" = "xy" ] && exit
         
