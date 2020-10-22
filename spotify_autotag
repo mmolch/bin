@@ -63,7 +63,7 @@ mkdir -p "${ARTIST}/[${YEAR}] ${ALBUM}" 2>/dev/null
 $(cd "${ARTIST}/[${YEAR}] ${ALBUM}" && spotify_fetch_cover "${1}")
 
 for index in ${!TITLES[*]}; do
-    if [ ! -f "${index}.mp3" ]; then
+    if [ ! -f "${index}.wav" ]; then
         continue
     fi
 
@@ -80,7 +80,7 @@ for index in ${!TITLES[*]}; do
         -y \
         -loglevel error \
         -stats \
-        -i "${index}.mp3" \
+        -i "${index}.wav" \
         -map_metadata -1 \
         -metadata "title=${TITLE}" \
         -metadata "artist=${ARTIST}" \

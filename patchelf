@@ -1,9 +1,21 @@
 #!/bin/bash
 
-case `arch` in
-	i*) "`dirname "$0"`/`uname`.x86/`basename "$0"`" "$@"
-	;;
+case "$(arch)" in
+    i386|i686)
+        ARCH=x86
+        ;;
 
-	x*) "`dirname "$0"`/`uname`.x86_64/`basename "$0"`" "$@"
-	;;
+    x86_64)
+        ARCH=x86_64
+        ;;
+        
+    *)
+        echo "patchelf: Not available on this architecture"
+        exit
+        ;;
 esac
+
+ScriptDir=$(readlink -f "${BASH_SOURCE%/*}")
+
+"${ScriptDir}/Linux.${ARCH}/patchelf" "$@"
+

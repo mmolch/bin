@@ -1,0 +1,22 @@
+#!/bin/bash
+
+baobab "$@"
+
+exit
+
+if ! tty -s; then
+    DISK_USAGE_SPAWNED_TERMINAL=1 \
+    gnome-terminal --title="Disk Usage" --window --wait -- "${BASH_SOURCE}" "${@}"
+    exit
+fi
+
+for path in "${@}"; do
+    du -h --si --one-file-system --max-depth 1 --time "$(readlink -f "${path}")"
+    echo
+done
+
+if [ -n "${DISK_USAGE_SPAWNED_TERMINAL}" ]; then
+    echo -e "\e[33;1;32mPress enter to close the window\e[33;0;37m"
+    read xxx
+fi
+

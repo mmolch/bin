@@ -1,0 +1,78 @@
+#!/bin/bash
+
+APPLICATIONS_DIR="${HOME}/.local/share/applications"
+FILE_MANAGER_ACTIONS_DIR="${HOME}/.local/share/file-manager/actions"
+ICONS_DIR="${HOME}/.local/share/icons"
+
+mkdir -p "${APPLICATIONS_DIR}"
+mkdir -p "${FILE_MANAGER_ACTIONS_DIR}"
+mkdir -p "${ICONS_DIR}"
+
+add_action() {
+desktop_file=${1##*/}
+desktop_file="${desktop_file%.*}.desktop"
+
+cat <<eof > "${FILE_MANAGER_ACTIONS_DIR}/${desktop_file}"
+[Desktop Entry]
+Type=Action
+Name=${vars['fma_name']}
+Profiles=Default;
+
+[X-Action-Profile Default]
+Exec=${1} %F
+MimeTypes=${vars['fma_mimetypes']}
+eof
+}
+
+add_application() {
+    echo
+}
+
+for fil in ${@}; do
+    echo -n "Register ${fil} ..."
+    if [ ! -f "${fil}" ]; then
+        echo " No such file"
+        continue
+    fi
+
+    unset vars
+    declare -A vars
+
+    while IFS= read -r line; do
+        case "${line}" in
+            '## '*)
+                var=${line##*## }
+                value=${var##*: }
+                var=${var%:*}
+                vars[${var}]="${value}"
+                ;;
+            *)
+                ;;
+        esac
+    done <${fil}
+
+    if [ -z "${vars['fma_type']}" ]; then
+        echo ' [Failed]'
+        continue
+    fi
+
+    if [ -z "${vars['fma_name']}" ]; then
+        echo ' [Failed]'
+        continue
+    fi
+
+    if [ -z "${vars['fma_mimetypes']}" ]; then
+        echo ' [Failed]'
+        continue
+    fi
+
+    case "${vars['fma_type']}" in
+        'Action')
+            add_action "$(readlink -f "${fil}")"
+            ;;
+        *)
+            ;;
+    esac
+
+    echo " [Done]"
+done
