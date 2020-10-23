@@ -1,0 +1,78 @@
+#!/bin/bash
+
+SOURCE_DIR=${PWD}
+
+TITLE=${SOURCE_DIR##*/}
+AUTHOR='Light Novels'
+COVER='cover.jpg'
+
+XMLSTARLET='xmlstarlet ed -N n=http://www.idpf.org/2007/opf -N dc=http://purl.org/dc/elements/1.1/'
+
+TMPDIR=$(mktemp -d '/tmp/epub-gen.XXXXXXXX')
+
+cd "${TMPDIR}"
+
+echo -n 'application/epub+zip' > mimetype
+
+mkdir 'META-INF'
+echo '<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+    <rootfiles>
+        <rootfile full-path="content.opf" media-type="application/oebps-package+xml"/>
+   </rootfiles>
+</container>' > 'META-INF/container.xml'
+
+CONTENT_OPF='<?xml version="1.0" encoding="utf-8"?> <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="title"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"/><manifest><item href="toc.ncx" id="ncx" media-type="application/x-dtbncx+xml"/></manifest><spine toc="ncx"/><guide/></package>'
+TOC_NCX='<?xml version="1.0" encoding="UTF-8"?> <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><head/><navMap/></ncx>'
+
+CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:metadata' -t elem -n 'dc:title' -v "${TITLE}" <<<${CONTENT_OPF})
+CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:metadata' -t elem -n 'dc:creator' -v "${AUTHOR}" <<<${CONTENT_OPF})
+
+NAVPLAYORDER=1
+
+while IFS= read -r TXTFILE; do
+    echo -ne "\r                                                                                \r${TXTFILE}"
+
+    TXFILE_EMBED=${TXTFILE##*/}
+    TXFILE_EMBED="${TXFILE_EMBED%.*}.xhtml"
+
+    echo '<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<meta content="http://www.w3.org/1999/xhtml; charset=utf-8" http-equiv="Content-Type"/>
+<link href="stylesheet.css" type="text/css" rel="stylesheet"/>
+</head>
+<body>
+' > "${TXFILE_EMBED}"
+sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g; s/$/<br\/>/g;' "${TXTFILE}" >> "${TXFILE_EMBED}"
+
+echo '</body>
+</html>' >> "${TXFILE_EMBED}"
+
+    CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:manifest' -t elem -n "item id=\"${TXFILE_EMBED%.*}\" href=\"${TXFILE_EMBED}\" media-type=\"application/xhtml+xml\"" <<<${CONTENT_OPF})
+    CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:spine' -t elem -n "itemref idref=\"${TXFILE_EMBED%.*}\"" <<<${CONTENT_OPF})
+
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode '/n:ncx/n:navMap' -t 'elem' -n "navPoint playOrder=\"${NAVPLAYORDER}\" id=\"${TXFILE_EMBED%.*}\"" <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXFILE_EMBED%.*}\"]" -t 'elem' -n 'navLabel' <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXFILE_EMBED%.*}\"]/n:navLabel" -t 'elem' -n 'text' -v "${TXFILE_EMBED%.*}" <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXFILE_EMBED%.*}\"]" -t 'elem' -n "content src=\"${TXFILE_EMBED}\"" <<<${TOC_NCX})
+
+    NAVPLAYORDER=$((${NAVPLAYORDER} + 1))
+done<<<$(find "${SOURCE_DIR}" -type f -name '*.txt' | sort -V)
+
+echo -e "${CONTENT_OPF}" > 'content.opf'
+echo -e "${TOC_NCX}" > 'toc.ncx'
+
+#bash
+
+#N
+#read xxx
+echo -e "\r                                                                                \r${TITLE}.epub"
+
+
+zip -q -r -9 'epub.zip' *
+mv 'epub.zip' "${SOURCE_DIR}/${TITLE}.epub"
+
+cd
+rm -rf "${TMPDIR}"
