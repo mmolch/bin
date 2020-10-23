@@ -60,7 +60,7 @@ for FIL in "$@"; do
 
             TITLE=${FIL%.*}
             AUTHOR="Light Novels"
-            OUTPATH="${FULLPATH%/*}/out/${TITLE}.epub"
+            OUTPATH="${FULLPATH%/*}/${TITLE% - *}/${TITLE}.epub"
 
             xml ed -N n='http://www.idpf.org/2007/opf' -N dc='http://purl.org/dc/elements/1.1/' --delete '/n:package/n:metadata/*' "${OPFFILE}.xml" \
             | xml ed -N n='http://www.idpf.org/2007/opf' -N dc='http://purl.org/dc/elements/1.1/' --subnode '/n:package/n:metadata' -t elem -n 'dc:title' -v "${TITLE}" \

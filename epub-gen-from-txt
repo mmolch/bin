@@ -22,13 +22,38 @@ echo '<?xml version="1.0" encoding="UTF-8"?>
    </rootfiles>
 </container>' > 'META-INF/container.xml'
 
-CONTENT_OPF='<?xml version="1.0" encoding="utf-8"?> <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="title"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"/><manifest><item href="toc.ncx" id="ncx" media-type="application/x-dtbncx+xml"/></manifest><spine toc="ncx"/><guide/></package>'
-TOC_NCX='<?xml version="1.0" encoding="UTF-8"?> <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><head/><navMap/></ncx>'
+CONTENT_OPF='<?xml version="1.0" encoding="utf-8"?> <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="title"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><meta name="cover" content="cover.jpg"/></metadata><manifest><item id="cover.xhtml" href="cover.xhtml" media-type="application/xhtml+xml"/><item id="cover.jpg" href="cover.jpg" media-type="image/jpeg"/><item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/></manifest><spine toc="ncx"><itemref idref="cover.xhtml"/></spine><guide/></package>'
+TOC_NCX='<?xml version="1.0" encoding="UTF-8"?> <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/"><head/><navMap><navPoint playOrder="1" id="cover.xhtml"><navLabel><text>Cover</text></navLabel><content src="cover.xhtml"/></navPoint></navMap></ncx>'
 
 CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:metadata' -t elem -n 'dc:title' -v "${TITLE}" <<<${CONTENT_OPF})
 CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:metadata' -t elem -n 'dc:creator' -v "${AUTHOR}" <<<${CONTENT_OPF})
 
-NAVPLAYORDER=1
+gen_cover() {
+convert \
+    -background white -fill black \
+    -size '480x640' -gravity center \
+    -font 'Noto-Serif-Regular' -pointsize 72 caption:"${TITLE}" \
+    'cover.jpg'
+
+cat <<eof > 'cover.xhtml'
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+  "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Cover</title>
+  </head>
+  <body>
+    <svg xmlns="http://www.w3.org/2000/svg" height="100%" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 480 640" width="100%" xmlns:xlink="http://www.w3.org/1999/xlink">
+      <image width="480" height="640" xlink:href="cover.jpg" src="cover.jpg"/>
+    </svg>
+  </body>
+</html>
+eof
+}
+
+NAVPLAYORDER=2
 
 while IFS= read -r TXTFILE; do
     echo -ne "\r                                                                                \r${TXTFILE}"
@@ -63,6 +88,8 @@ done<<<$(find "${SOURCE_DIR}" -type f -name '*.txt' | sort -V)
 
 echo -e "${CONTENT_OPF}" > 'content.opf'
 echo -e "${TOC_NCX}" > 'toc.ncx'
+
+gen_cover
 
 #bash
 
