@@ -56,10 +56,13 @@ eof
 NAVPLAYORDER=2
 
 while IFS= read -r TXTFILE; do
-    echo -ne "\r                                                                                \r${TXTFILE}"
+    TXTFILE_EMBED="${TXTFILE#${SOURCE_DIR}/*}"
+    echo -ne "\r                                                                                \r${TXTFILE_EMBED}"
 
-    TXFILE_EMBED=${TXTFILE##*/}
-    TXFILE_EMBED="${TXFILE_EMBED%.*}.xhtml"
+    TXTFILE_EMBED_BASENAME=${TXTFILE_EMBED%.*}
+    TXTFILE_EMBED="${TXTFILE_EMBED_BASENAME}.xhtml"
+
+    [ ! -d "${TXTFILE_EMBED%/*}" ] && mkdir -p "${TXTFILE_EMBED%/*}"
 
     echo '<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -69,19 +72,19 @@ while IFS= read -r TXTFILE; do
 <link href="stylesheet.css" type="text/css" rel="stylesheet"/>
 </head>
 <body>
-' > "${TXFILE_EMBED}"
-sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g; s/$/<br\/>/g;' "${TXTFILE}" >> "${TXFILE_EMBED}"
+' > "${TXTFILE_EMBED}"
+sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&#39;/g; s/$/<br\/>/g;' "${TXTFILE}" >> "${TXTFILE_EMBED}"
 
 echo '</body>
-</html>' >> "${TXFILE_EMBED}"
+</html>' >> "${TXTFILE_EMBED}"
 
-    CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:manifest' -t elem -n "item id=\"${TXFILE_EMBED%.*}\" href=\"${TXFILE_EMBED}\" media-type=\"application/xhtml+xml\"" <<<${CONTENT_OPF})
-    CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:spine' -t elem -n "itemref idref=\"${TXFILE_EMBED%.*}\"" <<<${CONTENT_OPF})
+    CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:manifest' -t elem -n "item id=\"${TXTFILE_EMBED_BASENAME}\" href=\"${TXTFILE_EMBED}\" media-type=\"application/xhtml+xml\"" <<<${CONTENT_OPF})
+    CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:spine' -t elem -n "itemref idref=\"${TXTFILE_EMBED_BASENAME}\"" <<<${CONTENT_OPF})
 
-    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode '/n:ncx/n:navMap' -t 'elem' -n "navPoint playOrder=\"${NAVPLAYORDER}\" id=\"${TXFILE_EMBED%.*}\"" <<<${TOC_NCX})
-    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXFILE_EMBED%.*}\"]" -t 'elem' -n 'navLabel' <<<${TOC_NCX})
-    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXFILE_EMBED%.*}\"]/n:navLabel" -t 'elem' -n 'text' -v "${TXFILE_EMBED%.*}" <<<${TOC_NCX})
-    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXFILE_EMBED%.*}\"]" -t 'elem' -n "content src=\"${TXFILE_EMBED}\"" <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode '/n:ncx/n:navMap' -t 'elem' -n "navPoint playOrder=\"${NAVPLAYORDER}\" id=\"${TXTFILE_EMBED_BASENAME}\"" <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXTFILE_EMBED_BASENAME}\"]" -t 'elem' -n 'navLabel' <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXTFILE_EMBED_BASENAME}\"]/n:navLabel" -t 'elem' -n 'text' -v "${TXTFILE_EMBED_BASENAME//\// - }" <<<${TOC_NCX})
+    TOC_NCX=$(xmlstarlet ed -N n='http://www.daisy.org/z3986/2005/ncx/' --subnode "/n:ncx/n:navMap/n:navPoint[@id=\"${TXTFILE_EMBED_BASENAME}\"]" -t 'elem' -n "content src=\"${TXTFILE_EMBED}\"" <<<${TOC_NCX})
 
     NAVPLAYORDER=$((${NAVPLAYORDER} + 1))
 done<<<$(find "${SOURCE_DIR}" -type f -name '*.txt' | sort -V)
