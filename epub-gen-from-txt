@@ -8,7 +8,7 @@ COVER='cover.jpg'
 
 XMLSTARLET='xmlstarlet ed -N n=http://www.idpf.org/2007/opf -N dc=http://purl.org/dc/elements/1.1/'
 
-TMPDIR=$(mktemp -d '/tmp/epub-gen.XXXXXXXX')
+TMPDIR=$(mktemp -d '/dev/shm/epub-gen.XXXXXXXX')
 
 cd "${TMPDIR}"
 
@@ -62,7 +62,8 @@ while IFS= read -r TXTFILE; do
     TXTFILE_EMBED_BASENAME=${TXTFILE_EMBED%.*}
     TXTFILE_EMBED="${TXTFILE_EMBED_BASENAME}.xhtml"
 
-    [ ! -d "${TXTFILE_EMBED%/*}" ] && mkdir -p "${TXTFILE_EMBED%/*}"
+    mkdir -p "${TXTFILE_EMBED}"
+    rmdir "${TXTFILE_EMBED}"
 
     echo '<?xml version="1.0" encoding="utf-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
