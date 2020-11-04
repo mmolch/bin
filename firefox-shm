@@ -1,0 +1,12 @@
+#!/bin/bash
+
+TMPDIR=$(mktemp -d '/dev/shm/firefox-shm.XXXXXXXX')
+
+export HOME=${TMPDIR}
+
+firefox --no-remote "${@}" >/dev/null 2>/dev/null
+
+while [ -d "${TMPDIR}" ]; do
+    rm -rf "${TMPDIR}"
+    [ -d "${TMPDIR}" ] && sleep 1
+done

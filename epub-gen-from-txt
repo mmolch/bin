@@ -29,11 +29,15 @@ CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:metadata' -t elem -n 'dc:tit
 CONTENT_OPF=$(${XMLSTARLET} --subnode '/n:package/n:metadata' -t elem -n 'dc:creator' -v "${AUTHOR}" <<<${CONTENT_OPF})
 
 gen_cover() {
-convert \
-    -background white -fill black \
-    -size '480x640' -gravity center \
-    -font 'Noto-Serif-Regular' -pointsize 72 caption:"${TITLE}" \
-    'cover.jpg'
+if [ -f "${SOURCE_DIR}/cover.jpg" ]; then
+    cp "${SOURCE_DIR}/cover.jpg" .
+else
+    convert \
+        -background white -fill black \
+        -size '480x640' -gravity center \
+        -font 'Noto-Serif-Regular' -pointsize 64 caption:"${TITLE}" \
+        'cover.jpg'
+fi
 
 cat <<eof > 'cover.xhtml'
 <?xml version="1.0" encoding="utf-8"?>
@@ -44,9 +48,9 @@ cat <<eof > 'cover.xhtml'
   <head>
     <title>Cover</title>
   </head>
-  <body>
+  <body style="padding:0;margin:0;">
     <svg xmlns="http://www.w3.org/2000/svg" height="100%" preserveAspectRatio="xMidYMid meet" version="1.1" viewBox="0 0 480 640" width="100%" xmlns:xlink="http://www.w3.org/1999/xlink">
-      <image width="480" height="640" xlink:href="cover.jpg" src="cover.jpg"/>
+      <image width="480" height="640" xlink:href="cover.jpg" src="cover.jpg" style="padding:0;margin:0;"/>
     </svg>
   </body>
 </html>
