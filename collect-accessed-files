@@ -1,0 +1,25 @@
+#!/bin/bash
+
+
+TMPDIR=$(mktemp -d '/dev/shm/collect-accessed-files.XXXXXXXX')
+
+find "${1}" \( -type f -o -type l \) > "${TMPDIR}/files_to_watch.txt"
+
+echo -n 'Collecting files. Press a key to finish.'
+inotifywatch -e access --fromfile "${TMPDIR}/files_to_watch.txt" > "${TMPDIR}/accessed_files.txt" &
+inotifywatch_pid=$!
+
+read xxx
+kill -10 ${inotifywatch_pid}
+wait
+
+while IFS= read -r line; do
+    path=$(sed -re 's/^[0-9]+ +[0-9]+ +//' <<<${line})
+    [ -e "${path}" ] || continue
+
+    echo "${path}"
+    mkdir -p "${2}/${path%/*}"
+    cp -fuT "${path}" "${2}/${path}"
+done <"${TMPDIR}/accessed_files.txt"
+
+rm -rf "${TMPDIR}"

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+WINE_PATH=/opt/wine
+
+TMPDIR=$(mktemp -d '/dev/shm/wine.XXXXXXXX')
+
+export PATH="${WINE_PATH}/bin:${PATH}"
+export HOME=${TMPDIR}
+"${WINE_PATH}/bin/wine" winecfg
+"${WINE_PATH}/bin/wine" "${@}"
+
+while [ -d "${TMPDIR}" ]; do
+    rm -rf "${TMPDIR}"
+    [ -d "${TMPDIR}" ] && sleep 1
+done
