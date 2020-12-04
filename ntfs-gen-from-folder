@@ -68,14 +68,16 @@ failed() {
 }
 
 SOURCE_DIR=$(readlink -f "${1}")
-DEST_FILE="${SOURCE_DIR}.img"
+DEST_FILE="/media/moritz/Daten/Spiele/NTFS Images/${SOURCE_DIR##*/}.img"
 
 TMPDIR=$(mktemp -d '/dev/shm/ntfs-gen-from-folder.XXXXXXXX')
 NTFS_FILE="${TMPDIR}/disk.img"
 MOUNT_DIR="${NTFS_FILE}.mount"
 mkdir -p "${MOUNT_DIR}"
 
-create_ntfs_file "${NTFS_FILE}" "${SOURCE_DIR##*/}" "${START_SIZE}" || failed
+start_size=$(du -sb "${SOURCE_DIR}" | cut -d '	' -f 1)
+start_size=$((${start_size}/1048576))
+create_ntfs_file "${NTFS_FILE}" "${SOURCE_DIR##*/}" "${start_size}" || failed
 ntfs_mount "${NTFS_FILE}" "${MOUNT_DIR}" || failed
 #cp -vrf "${SOURCE_DIR}"/* "${MOUNT_DIR}" || failed
 rsync --info=progress2 --no-inc-recursive --inplace --size-only --delete-before --whole-file -r "${SOURCE_DIR}/" "${MOUNT_DIR}" || failed
