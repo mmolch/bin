@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Sizes in megabytes
-START_SIZE=50
-INCREASE_SIZE=50
+START_SIZE=16000
+INCREASE_SIZE=1000
 
 # $1: Filename
 # $2: Label
@@ -11,6 +11,14 @@ create_ntfs_file() {
     dd if=/dev/zero count=${3} bs=1M > "${1}" 2>/dev/null || return 1
     mkntfs -QCF -L "${2}" "${1}" 2>/dev/null || return 1
 }
+
+# $1: Filename
+ntfs_shrink_fit() {
+    new_size=$(ntfsresize -i "${1}" | sed -ne '12{p}' | cut -d ' ' -f 5)
+    echo 'y' | ntfsresize -fs "${new_size}" "${1}" || return 1
+    truncate -s "${new_size}" "${1}"
+}
+
 
 # $1: Filename
 # $2: Size increment in megabytes
@@ -38,7 +46,17 @@ ntfs_finish() {
 }
 
 copy_data() {
-    rsync -r "${SOURCE_DIR}/" "${MOUNT_DIR}" || return 1
+    #rsync --inplace --size-only --delete-before --whole-file -r "${SOURCE_DIR}/" "${MOUNT_DIR}" || return 1
+    while IFS= read -r path; do
+        echo "${path}"
+        [ -f "${1}/${path%/*}" ] || [ -d "${2}/${path%/*}" ] || mkdir -p "${2}/${path%/*}" || return 1
+        if [ -e "${2}/${path}" ] || cp "${1}/${path}" "${2}/${path}"; then
+            continue
+        else
+            rm -f "${2}/${path}"
+            return 1
+        fi
+    done <<<$(find "${1}" -type f -printf "%P\n")
 }
 
 failed() {
@@ -47,8 +65,8 @@ failed() {
     exit
 }
 
-SOURCE_DIR=${1}
-DEST_FILE="${1}.img"
+SOURCE_DIR=$(readlink -f "${1}")
+DEST_FILE="${SOURCE_DIR}.img"
 
 TMPDIR=$(mktemp -d '/dev/shm/ntfs-gen-from-folder.XXXXXXXX')
 NTFS_FILE="${TMPDIR}/disk.img"
@@ -56,18 +74,13 @@ MOUNT_DIR="${NTFS_FILE}.mount"
 mkdir -p "${MOUNT_DIR}"
 
 create_ntfs_file "${NTFS_FILE}" "${SOURCE_DIR##*/}" "${START_SIZE}" || failed
-while true; do
-    ntfs_mount "${NTFS_FILE}" "${MOUNT_DIR}" || failed
-    if copy_data "${SOURCE_DIR}" "${MOUNT_DIR}"; then
-        ntfs_unmount "${NTFS_FILE}"
-        ntfs_finish "${NTFS_FILE}"
-        break
-    else
-        ntfs_unmount "${NTFS_FILE}"
-        ntfs_increase_size "${NTFS_FILE}" "${INCREASE_SIZE}" || failed
-    fi
-done
+ntfs_mount "${NTFS_FILE}" "${MOUNT_DIR}" || failed
+cp -vrf "${SOURCE_DIR}"/* "${MOUNT_DIR}" || failed
+ntfs_unmount "${NTFS_FILE}" || failed
+ntfs_shrink_fit "${NTFS_FILE}" || failed
+ntfs_finish "${NTFS_FILE}" || failed
 
+echo mv "${NTFS_FILE}" "${DEST_FILE}"
 mv "${NTFS_FILE}" "${DEST_FILE}"
-#(cd "${TMPDIR}" && bash)
+
 rm -rf "${TMPDIR}"
