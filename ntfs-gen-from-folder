@@ -1,0 +1,73 @@
+#!/bin/bash
+
+# Sizes in megabytes
+START_SIZE=50
+INCREASE_SIZE=50
+
+# $1: Filename
+# $2: Label
+# $3: Size in megabytes
+create_ntfs_file() {
+    dd if=/dev/zero count=${3} bs=1M > "${1}" 2>/dev/null || return 1
+    mkntfs -QCF -L "${2}" "${1}" 2>/dev/null || return 1
+}
+
+# $1: Filename
+# $2: Size increment in megabytes
+ntfs_increase_size() {
+    dd if=/dev/zero count=${2} bs=1M >> "${1}" || return 1
+    new_size=$(ls -l "${1}" | cut -d ' ' -f 5) || return 1
+
+    echo 'y' | ntfsresize -fs "${new_size}" "${1}" || return 1
+}
+
+# $1: Filename
+# $2: Mount Dir
+ntfs_mount() {
+    sudo mount -t 'ntfs-3g' -o "loop,gid=$(id -u),uid=$(id -g)" "${1}" "${2}/" || return 1
+}
+
+# $1: Filename
+ntfs_unmount() {
+    sudo umount "${1}" || return 1
+}
+
+# $1: Filename
+ntfs_finish() {
+    ntfsfix -d "${1}" || return 1
+}
+
+copy_data() {
+    rsync -r "${SOURCE_DIR}/" "${MOUNT_DIR}" || return 1
+}
+
+failed() {
+    echo 'An error occurred'
+    (cd "${TMPDIR}" && bash)
+    exit
+}
+
+SOURCE_DIR=${1}
+DEST_FILE="${1}.img"
+
+TMPDIR=$(mktemp -d '/dev/shm/ntfs-gen-from-folder.XXXXXXXX')
+NTFS_FILE="${TMPDIR}/disk.img"
+MOUNT_DIR="${NTFS_FILE}.mount"
+mkdir -p "${MOUNT_DIR}"
+
+create_ntfs_file "${NTFS_FILE}" "${SOURCE_DIR##*/}" "${START_SIZE}" || failed
+while true; do
+    ntfs_mount "${NTFS_FILE}" "${MOUNT_DIR}" || failed
+    if copy_data "${SOURCE_DIR}" "${MOUNT_DIR}"; then
+        ntfs_unmount "${NTFS_FILE}"
+        ntfs_finish "${NTFS_FILE}"
+        break
+    else
+        ntfs_unmount "${NTFS_FILE}"
+        ntfs_increase_size "${NTFS_FILE}" "${INCREASE_SIZE}" || failed
+    fi
+done
+
+mv "${NTFS_FILE}" "${DEST_FILE}"
+#(cd "${TMPDIR}" && bash)
+rm -rf "${TMPDIR}"

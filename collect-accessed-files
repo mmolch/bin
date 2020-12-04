@@ -6,12 +6,14 @@ TMPDIR=$(mktemp -d '/dev/shm/collect-accessed-files.XXXXXXXX')
 find "${1}" \( -type f -o -type l \) > "${TMPDIR}/files_to_watch.txt"
 
 echo -n 'Collecting files. Press a key to finish.'
-inotifywatch -e access --fromfile "${TMPDIR}/files_to_watch.txt" > "${TMPDIR}/accessed_files.txt" &
+inotifywatch -e open --fromfile "${TMPDIR}/files_to_watch.txt" > "${TMPDIR}/accessed_files.txt" &
 inotifywatch_pid=$!
 
 read xxx
-kill -10 ${inotifywatch_pid}
-wait
+kill -2 ${inotifywatch_pid}
+wait ${inotifywatch_pid}
+
+echo '------'
 
 while IFS= read -r line; do
     path=$(sed -re 's/^[0-9]+ +[0-9]+ +//' <<<${line})
